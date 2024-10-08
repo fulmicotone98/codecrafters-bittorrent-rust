@@ -1,4 +1,5 @@
 use std::env;
+
 // Available if you need it!
 
 #[allow(dead_code)]
@@ -50,7 +51,30 @@ fn decode_bencoded_value(encoded_value: &str) -> (serde_json::Value, &str) {
 
             (values.into(), &rest[1..])
         }
-        _ => {}
+        Some('d') => {
+            // If encoded_value starts with 'd', it's a dictionary.
+            // For example: "d3:foo3:bar5:helloi52ee" -> {"hello": 52, "foo":"bar"}
+
+            // Value type represents any JSON type; since we will have a list of JSON vlaues, we can use a Vec of Value to store all the values of the bencoded list.
+            let mut dictionary = serde_json::Map::new();
+            let mut rest = encoded_value.split_at(1).1;
+            while !rest.is_empty() && !rest.starts_with('e') {
+                let (k, remainder) = decode_bencoded_value(rest);
+                let k = match k {
+                    serde_json::Value::String(k) => k,
+                    k => panic!("dictionary keys must be strings, not {k:?}"),
+                };
+
+                let (v, remainder) = decode_bencoded_value(remainder);
+                dictionary.insert(k, v);
+
+                rest = remainder;
+            }
+
+            (dictionary.into(), &rest[1..])
+        }
+
+        _ => (serde_json::Value::Null, encoded_value),
     }
 }
 
