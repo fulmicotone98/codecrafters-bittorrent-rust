@@ -50,7 +50,7 @@ fn decode_bencoded_value(encoded_value: &str) -> (serde_json::Value, &str) {
 
             (values.into(), &rest[1..])
         }
-        _ => (serde_json::Value::Null, encoded_value),
+        _ => {}
     }
 }
 
