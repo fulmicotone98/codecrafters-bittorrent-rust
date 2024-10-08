@@ -1,33 +1,57 @@
 use std::env;
-
 // Available if you need it!
-// use serde_bencode
 
 #[allow(dead_code)]
-fn decode_bencoded_value(encoded_value: &str) -> serde_json::Value {
-    
-    // If encoded_value starts with a digit, it's a string
-    if encoded_value.chars().next().unwrap().is_ascii_digit() {
-        // Example: "5:hello" -> "hello"
-        let colon_index = encoded_value.find(':').unwrap();
-        let number_string = &encoded_value[..colon_index];
-        let number = number_string.parse::<i64>().unwrap();
-        let string = &encoded_value[colon_index + 1..colon_index + 1 + number as usize];
+fn decode_bencoded_value(encoded_value: &str) -> (serde_json::Value, &str) {
+    match encoded_value.chars().next() {
+        Some('0'..='9') => {
+            // If encoded_value starts with a digit, it's a string
+            // Example: "5:hello" -> "hello"
+            if let Some((len, rest)) = encoded_value.split_once(':') {
+                if let Ok(len) = len.parse::<usize>() {
+                    (rest[..len].to_string().into(), &rest[len..])
+                } else {
+                    (serde_json::Value::Null, encoded_value)
+                }
+            } else {
+                (serde_json::Value::Null, encoded_value)
+            }
+        }
+        Some('i') => {
+            // If encoded_value starts with 'i', it's an integer
+            // Example: "i45e" -> 45
+            if let Some((integer, rest)) =
+                encoded_value
+                    .split_at(1)
+                    .1
+                    .split_once('e')
+                    .and_then(|(digits, rest)| {
+                        let integer = digits.parse::<i64>().ok()?;
+                        Some((integer, rest))
+                    })
+            {
+                (integer.into(), rest)
+            } else {
+                (serde_json::Value::Null, encoded_value)
+            }
+        }
+        Some('l') => {
+            // If encoded_value starts with 'l', it's a list
+            // For example: "l5:helloi52ee" -> ["hello", 52]
 
-        serde_json::Value::String(string.to_string())
+            // Value type represents any JSON type; since we will have a list of JSON vlaues, we can use a Vec of Value to store all the values of the bencoded list.
+            let mut values = Vec::new();
+            let mut rest = encoded_value.split_at(1).1;
+            while !rest.is_empty() && !rest.starts_with('e') {
+                let (val, remainder) = decode_bencoded_value(rest);
+                values.push(val);
+                rest = remainder;
+            }
 
-    } else if encoded_value.starts_with('i') {
-        // If encoded_value starts with 'i', it's an integer
-        // Example: "i45e" -> 45
-        let end_index = encoded_value.find('e').unwrap();
-        let int_as_string = &encoded_value[1..end_index];
-
-        serde_json::Value::Number(int_as_string.parse::<i64>().unwrap().into())
-    } else {
-        panic!("Unhandled encoded value: {}", encoded_value)
-    } 
-
-    
+            (values.into(), &rest[1..])
+        }
+        _ => (serde_json::Value::Null, encoded_value),
+    }
 }
 
 // Usage: your_bittorrent.sh decode "<encoded_value>"
@@ -39,10 +63,8 @@ fn main() {
         "decode" => {
             let encoded_value = &args[2];
             let decoded_value = decode_bencoded_value(encoded_value);
-            println!("{}", decoded_value);
+            println!("{}", decoded_value.0);
         }
-
         _ => println!("unknown command: {}", args[1]),
     }
-
 }
