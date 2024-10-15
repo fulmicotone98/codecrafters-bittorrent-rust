@@ -152,7 +152,6 @@ async fn main() -> anyhow::Result<()> {
                 serde_bencode::from_bytes(&dot_torrent).context("parse torrent file")?;
 
             let length = if let torrent::Keys::SingleFile { length } = t.info.keys {
-                println!("Length: {length}");
                 length
             } else {
                 todo!();
