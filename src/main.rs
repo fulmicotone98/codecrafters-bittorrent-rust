@@ -1,6 +1,8 @@
 use anyhow::Context;
-use bittorrent_starter_rust::torrent::{self, Torrent};
-use bittorrent_starter_rust::tracker::*;
+use bittorrent_starter_rust::{
+    torrent::{self, Torrent},
+    tracker::{TrackerRequest, TrackerResponse},
+};
 use clap::{Parser, Subcommand};
 use serde_bencode;
 use serde_json;
