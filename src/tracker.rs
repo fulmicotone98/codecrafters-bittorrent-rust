@@ -72,7 +72,7 @@ mod peers {
                     .map(|slice_6| {
                         SocketAddrV4::new(
                             Ipv4Addr::new(slice_6[0], slice_6[1], slice_6[2], slice_6[3]),
-                            u16::from_ne_bytes([slice_6[4], slice_6[5]]),
+                            u16::from_be_bytes([slice_6[4], slice_6[5]]),
                         )
                     })
                     .collect(),
@@ -97,7 +97,7 @@ mod peers {
             let mut single_slice = Vec::with_capacity(6 * self.0.len());
             for peer in &self.0 {
                 single_slice.extend(peer.ip().octets());
-                single_slice.extend(peer.port().to_ne_bytes());
+                single_slice.extend(peer.port().to_be_bytes());
             }
             serializer.serialize_bytes(&single_slice)
         }
