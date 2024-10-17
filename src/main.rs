@@ -1,6 +1,6 @@
 use anyhow::Context;
+use bittorrent_starter_rust::peer::*;
 use bittorrent_starter_rust::{
-    peer::Handshake,
     torrent::{self, Torrent},
     tracker::{TrackerRequest, TrackerResponse},
 };
