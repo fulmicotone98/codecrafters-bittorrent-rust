@@ -5,8 +5,6 @@ use bittorrent_starter_rust::{
     tracker::{TrackerRequest, TrackerResponse},
 };
 use clap::{Parser, Subcommand};
-use serde_bencode;
-use serde_json;
 use std::{net::SocketAddrV4, path::PathBuf};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
