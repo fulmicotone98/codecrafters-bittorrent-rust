@@ -13,10 +13,9 @@ pub struct Torrent {
 }
 
 impl Torrent {
-    pub fn info_hash(&self) -> [u8; 20]{
+    pub fn info_hash(&self) -> [u8; 20] {
         // Calculate the info hash of the Torrent file
-        let info_encoded =
-            serde_bencode::to_bytes(&self.info).expect("re-encoded info section");
+        let info_encoded = serde_bencode::to_bytes(&self.info).expect("re-encoded info section");
         let mut hasher = Sha1::new();
         hasher.update(info_encoded);
         hasher.finalize().into()
