@@ -41,6 +41,11 @@ enum Command {
         torrent: PathBuf,
         piece: usize,
     },
+    Download {
+        #[arg(short)]
+        output: PathBuf,
+        torrent: PathBuf,
+    },
 }
 
 #[allow(dead_code)]
@@ -400,6 +405,21 @@ async fn main() -> anyhow::Result<()> {
                 .context("write out downloaded piece")?;
 
             println!("Piece {piece_i} downloaded to {}.", output.display());
+        }
+
+        Command::Download { output, torrent } => {
+            let torrent = Torrent::read(torrent).await?;
+            // I want the ability to print the file tree of the .torrent
+            torrent.print_tree();
+            // Download all the files of the torrent inside the output directory
+            //torrent.download_all_to_file(output).await?;
+            let files = torrent.download_all().await?;
+
+            tokio::fs::write(
+                output,
+                files.into_iter().next().expect("always one file").bytes(),
+            )
+            .await?;
         }
     }
     Ok(())
