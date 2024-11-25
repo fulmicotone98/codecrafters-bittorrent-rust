@@ -10,8 +10,9 @@ use tokio_util::codec::{Decoder, Encoder, Framed};
 
 const BLOCK_MAX: usize = 1 << 14;
 
+// TODO: ideally, Peer should keep track of what pieces we have downloaded (and references to them) so that we can respond to Requests from the other side. Also chokeing/unchoking the other side.
 pub(crate) struct Peer {
-    addr: SocketAddrV4,
+    // addr: SocketAddrV4,
     stream: Framed<TcpStream, MessageFramer>,
     bitfield: Bitfield,
     choked: bool,
@@ -51,7 +52,7 @@ impl Peer {
         // NOTE: we assume that bitfield covers all pieces
 
         Ok(Self {
-            addr: peer_addr,
+            // addr: peer_addr,
             stream: peer,
             bitfield: Bitfield::from_payload(bitfield.payload),
             choked: true,
@@ -120,18 +121,19 @@ impl Peer {
             .await
             .context("send interested message")?;
 
+        // TODO: timeout, error, and return block to submit if .next() timed out
         'task: loop {
             while self.choked {
-                let unchoke = self
+                let msg = self
                     .stream
                     .next()
                     .await
                     .expect("peer always sends an unchoke")
                     .context("peer message was invalid")?;
-                match unchoke.tag {
+                match msg.tag {
                     MessageTag::Unchoke => {
                         self.choked = false;
-                        assert!(unchoke.payload.is_empty());
+                        assert!(msg.payload.is_empty());
                         break;
                     }
                     MessageTag::Have => {
@@ -163,7 +165,6 @@ impl Peer {
             };
 
             // It is going to continuonsly receive tasks that it's going to download from this channel
-            // while let Ok(block) = tasks.recv().await {
             let block_size = if block == nblocks - 1 {
                 let md = piece_size % BLOCK_MAX;
                 if md == 0 {
@@ -244,7 +245,7 @@ impl Peer {
                 }
             }
 
-            finish.send(msg).await.expect("receiver should not go away while there are active peers (us) an missing blocks (this");
+            finish.send(msg).await.expect("receiver should not go away while there are active peers (us) and missing blocks (this)");
         }
 
         Ok(())

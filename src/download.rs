@@ -56,12 +56,13 @@ pub(crate) async fn all(t: &Torrent) -> anyhow::Result<Downloaded> {
     // TODO
     assert!(no_peers.is_empty());
 
-    // TODO: this is dumb
+    // TODO: this is dumb because all the pieces for a given torrent may not fit in memory! Should probably .write every piece to disk so that we can also reasume downloads, and seed later on
     let mut all_pieces = vec![0; t.length()];
     while let Some(next_piece) = need_pieces.pop() {
-        // The + (BLOCK_MAX - 1) rounds up
         let piece_size = next_piece.length();
+
         // Each piece has a bunch of blocks
+        // The + (BLOCK_MAX - 1) rounds up
         let nblocks = (piece_size + (BLOCK_MAX - 1)) / BLOCK_MAX;
 
         // We are gonna have a mutable ref to each of the peers that have this particular piece available
@@ -127,10 +128,14 @@ pub(crate) async fn all(t: &Torrent) -> anyhow::Result<Downloaded> {
                         let piece = crate::peer::Piece::ref_from_bytes(&piece.payload[..])
                             .expect("always get all Piece response fields from peers");
                         bytes_received += piece.block().len();
-                        all_blocks[piece.begin() as usize..].copy_from_slice(piece.block());
+                        all_blocks[piece.begin() as usize..][..piece.block().len()].copy_from_slice(piece.block());
+                        if bytes_received == piece_size {
+                            // have received every piece
+                            // this must mean that all partecipations have either or are waiting for more work -- in either case, it is okay to drop all the partecipant futures.
+                            break;
+                        }
                     } else {
-                        // have received every piece (or no peers left)
-                        // this must mean that all partecipations have either or are waiting for more work -- in either case, it is okay to drop all the partecipant futures.
+                        // there are no peers left
                         break;
                     }
                 }
@@ -148,12 +153,11 @@ pub(crate) async fn all(t: &Torrent) -> anyhow::Result<Downloaded> {
 
         let mut hasher = Sha1::new();
         hasher.update(&all_blocks);
-        let hash: [u8; 20] = hasher
-            .finalize()
-            .into();
+        let hash: [u8; 20] = hasher.finalize().into();
         assert_eq!(hash, next_piece.hash());
 
-        all_pieces[next_piece.index() * t.info.plength..].copy_from_slice(&all_blocks);
+        all_pieces[next_piece.index() * t.info.plength..][..piece_size]
+            .copy_from_slice(&all_blocks);
     }
 
     Ok(Downloaded {
